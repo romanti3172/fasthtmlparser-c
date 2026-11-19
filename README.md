@@ -173,8 +173,8 @@ cmake -S bench -B bench/build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --bui
 bench/build/fhp_bench
 ```
 
-AMD Ryzen 7 3800X, Windows, MSVC 19.52 (full tables with gcc 16 too in [`bench-results.md`](bench-results.md); Linux:
-`docker build -f bench/Dockerfile -t fhp-bench-c .`). Parse a page:
+AMD Ryzen 7 3800X, Windows, MSVC 19.52 (full tables in [`bench-results.md`](bench-results.md): Windows with MSVC and
+gcc 16, Linux with gcc 14 and clang 19 from `docker build -f bench/Dockerfile -t fhp-bench-c .`). Parse a page:
 
 | Page | fasthtmlparser | lexbor | lexbor, document reused | Gumbo |
 |---|---:|---:|---:|---:|
@@ -195,6 +195,10 @@ Scrape a page: parse and extract the records. Books: 20 × title, price, rating;
 | quotes, `find` | 25 μs | |
 | quotes, CSS | 24 μs | lexbor 123 μs |
 | quotes, tree walk | | Gumbo 686 μs |
+
+On Linux (same machine, gcc 14) the gaps are the same or wider: books 51 KB in 44 μs (fasthtmlparser) against 484 μs
+(lexbor; 282 μs with the document reused) and 2,085 μs (Gumbo); the books scrape with CSS in 56 μs against 292 μs
+(lexbor) and 2,020 μs (Gumbo).
 
 These are different tools: lexbor and Gumbo build a full HTML5 DOM by the spec's tree-construction rules (implied
 `<html>` / `<head>` / `<body>`, the adoption agency, foster parenting), which a scraper rarely needs and which this

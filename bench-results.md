@@ -1,4 +1,4 @@
-Windows 10, AMD Ryzen 7 3800X, lexbor 3.0.1, Gumbo 0.14.1, `cmake -S bench -B bench/build -G Ninja -DCMAKE_BUILD_TYPE=Release` (2026-11-19).
+AMD Ryzen 7 3800X (Windows 10 VM, and Linux on the same machine),  lexbor 3.0.1, Gumbo 0.14.1, `cmake -S bench -B bench/build -G Ninja -DCMAKE_BUILD_TYPE=Release` (2026-11-19).
 
 "borrowed": `fhp_parse_borrowed` (no copy of the page); the other fasthtmlparser rows use `fhp_parse` (copy + UTF-8 check). "lexbor (document reused)": one `lxb_html_document_t` parsed again and again, lexbor at its best.
 
@@ -79,3 +79,83 @@ Windows 10, AMD Ryzen 7 3800X, lexbor 3.0.1, Gumbo 0.14.1, `cmake -S bench -B be
 | scrape 10 quotes | fasthtmlparser CSS | 25.8 µs |  |
 | scrape 10 quotes | lexbor CSS | 107.5 µs |  |
 | scrape 10 quotes | gumbo (tree walk) | 667.8 µs |  |
+
+## Linux (Ubuntu 26.04 host, kernel 7.0, Docker image `fhp-bench-c` from bench/Dockerfile, `--cpuset-cpus 8-15`), gcc 14.2.0, -O3
+
+| task | library | time | throughput |
+|---|---|---:|---:|
+| parse quotes 11 KB | fasthtmlparser | 12.1 µs | 937 MB/s |
+| parse quotes 11 KB | fasthtmlparser (borrowed) | 11.1 µs | 1026 MB/s |
+| parse quotes 11 KB | lexbor | 114.5 µs | 99 MB/s |
+| parse quotes 11 KB | lexbor (document reused) | 78.2 µs | 145 MB/s |
+| parse quotes 11 KB | gumbo | 437.2 µs | 26 MB/s |
+| parse laptops 38 KB | fasthtmlparser | 34.9 µs | 1108 MB/s |
+| parse laptops 38 KB | fasthtmlparser (borrowed) | 33.7 µs | 1148 MB/s |
+| parse laptops 38 KB | lexbor | 493.3 µs | 78 MB/s |
+| parse laptops 38 KB | lexbor (document reused) | 260.6 µs | 148 MB/s |
+| parse laptops 38 KB | gumbo | 1342.9 µs | 29 MB/s |
+| parse books 51 KB | fasthtmlparser | 43.5 µs | 1232 MB/s |
+| parse books 51 KB | fasthtmlparser (borrowed) | 40.6 µs | 1320 MB/s |
+| parse books 51 KB | lexbor | 484.2 µs | 111 MB/s |
+| parse books 51 KB | lexbor (document reused) | 281.6 µs | 190 MB/s |
+| parse books 51 KB | gumbo | 2084.7 µs | 26 MB/s |
+| parse books x10 510 KB | fasthtmlparser | 453.1 µs | 1182 MB/s |
+| parse books x10 510 KB | fasthtmlparser (borrowed) | 378.7 µs | 1414 MB/s |
+| parse books x10 510 KB | lexbor | 4153.0 µs | 129 MB/s |
+| parse books x10 510 KB | lexbor (document reused) | 4497.2 µs | 119 MB/s |
+| parse books x10 510 KB | gumbo | 21998.9 µs | 24 MB/s |
+| parse books, no </li> </p> | fasthtmlparser | 40.6 µs | 1302 MB/s |
+| parse books, no </li> </p> | fasthtmlparser (borrowed) | 37.2 µs | 1422 MB/s |
+| parse books, no </li> </p> | lexbor | 249.1 µs | 212 MB/s |
+| parse books, no </li> </p> | lexbor (document reused) | 242.2 µs | 219 MB/s |
+| parse books, no </li> </p> | gumbo | 1971.5 µs | 27 MB/s |
+| scrape 20 books | fasthtmlparser find | 54.1 µs |  |
+| scrape 20 books | fasthtmlparser CSS | 56.1 µs |  |
+| scrape 20 books | fasthtmlparser XPath | 81.2 µs |  |
+| scrape 20 books | lexbor CSS | 292.1 µs |  |
+| scrape 20 books | gumbo (tree walk) | 2019.6 µs |  |
+| scrape 10 quotes | fasthtmlparser find | 18.9 µs |  |
+| scrape 10 quotes | fasthtmlparser CSS | 18.6 µs |  |
+| scrape 10 quotes | lexbor CSS | 89.4 µs |  |
+| scrape 10 quotes | gumbo (tree walk) | 439.9 µs |  |
+
+## Linux, clang 19.1.7, -O3
+
+| task | library | time | throughput |
+|---|---|---:|---:|
+| parse quotes 11 KB | fasthtmlparser | 12.0 µs | 946 MB/s |
+| parse quotes 11 KB | fasthtmlparser (borrowed) | 10.8 µs | 1046 MB/s |
+| parse quotes 11 KB | lexbor | 107.3 µs | 106 MB/s |
+| parse quotes 11 KB | lexbor (document reused) | 71.2 µs | 159 MB/s |
+| parse quotes 11 KB | gumbo | 409.1 µs | 28 MB/s |
+| parse laptops 38 KB | fasthtmlparser | 37.9 µs | 1020 MB/s |
+| parse laptops 38 KB | fasthtmlparser (borrowed) | 33.3 µs | 1161 MB/s |
+| parse laptops 38 KB | lexbor | 455.3 µs | 85 MB/s |
+| parse laptops 38 KB | lexbor (document reused) | 248.5 µs | 156 MB/s |
+| parse laptops 38 KB | gumbo | 1239.7 µs | 31 MB/s |
+| parse books 51 KB | fasthtmlparser | 41.7 µs | 1283 MB/s |
+| parse books 51 KB | fasthtmlparser (borrowed) | 38.7 µs | 1383 MB/s |
+| parse books 51 KB | lexbor | 428.0 µs | 125 MB/s |
+| parse books 51 KB | lexbor (document reused) | 259.3 µs | 206 MB/s |
+| parse books 51 KB | gumbo | 1968.6 µs | 27 MB/s |
+| parse books x10 510 KB | fasthtmlparser | 433.7 µs | 1234 MB/s |
+| parse books x10 510 KB | fasthtmlparser (borrowed) | 394.6 µs | 1357 MB/s |
+| parse books x10 510 KB | lexbor | 4023.4 µs | 133 MB/s |
+| parse books x10 510 KB | lexbor (document reused) | 3892.8 µs | 138 MB/s |
+| parse books x10 510 KB | gumbo | 21283.4 µs | 25 MB/s |
+| parse books, no </li> </p> | fasthtmlparser | 41.7 µs | 1270 MB/s |
+| parse books, no </li> </p> | fasthtmlparser (borrowed) | 38.7 µs | 1366 MB/s |
+| parse books, no </li> </p> | lexbor | 232.0 µs | 228 MB/s |
+| parse books, no </li> </p> | lexbor (document reused) | 226.9 µs | 233 MB/s |
+| parse books, no </li> </p> | gumbo | 1891.6 µs | 28 MB/s |
+| scrape 20 books | fasthtmlparser find | 55.8 µs |  |
+| scrape 20 books | fasthtmlparser CSS | 58.6 µs |  |
+| scrape 20 books | fasthtmlparser XPath | 82.8 µs |  |
+| scrape 20 books | lexbor CSS | 276.4 µs |  |
+| scrape 20 books | gumbo (tree walk) | 2036.4 µs |  |
+| scrape 10 quotes | fasthtmlparser find | 19.4 µs |  |
+| scrape 10 quotes | fasthtmlparser CSS | 20.0 µs |  |
+| scrape 10 quotes | lexbor CSS | 97.0 µs |  |
+| scrape 10 quotes | gumbo (tree walk) | 412.9 µs |  |
+
+On Linux the server also runs production services, so single rows can be noisy (lexbor on books 51 KB: 484 µs, but 249 µs on the same page without `</li>` `</p>`).
