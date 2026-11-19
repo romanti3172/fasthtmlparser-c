@@ -1,0 +1,10 @@
+# LF everywhere (sources, CMake, Dockerfile, docs).
+* text=auto eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.py text eol=lf
+CMakeLists.txt text eol=lf
+
+# Test pages and the expected .NET output are compared byte for byte (positions are byte offsets):
+# git must never convert their line endings.
+testdata/** -text linguist-vendored
