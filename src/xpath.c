@@ -543,7 +543,7 @@ enum func {
 };
 enum ekind {
     E_LITERAL, E_NUMBER, E_LOGIC, E_COMPARE, E_ARITH, E_NEGATE, E_UNION, E_ATTR_EQUALS, E_ATTR_EXISTS, E_PATH,
-    E_FILTER, E_FUNCTION
+    E_FILTER, E_FUNCTION, E_ATTR_TEST
 };
 
 typedef struct expr expr;
@@ -558,7 +558,8 @@ typedef struct step {
 struct expr {
     int kind;
     fhp_str str;   /* literal; attribute name (E_ATTR_*) */
-    fhp_str value; /* E_ATTR_EQUALS */
+    fhp_str value; /* E_ATTR_EQUALS; the needle of E_ATTR_TEST */
+    fhp_str prefix, suffix; /* E_ATTR_TEST: the literals around the attribute */
     double num;
     int op;   /* and (1) / or; compare op; arith op; negate (E_ATTR_EQUALS); func */
     int type; /* the result type of a function */
@@ -587,6 +588,7 @@ static int expr_type(const expr *e) {
     case E_COMPARE:
     case E_ATTR_EQUALS:
     case E_ATTR_EXISTS:
+    case E_ATTR_TEST:
         return Y_BOOLEAN;
     case E_UNION:
     case E_PATH:
@@ -933,6 +935,7 @@ static value eval(const expr *e, const ectx *c) {
     case E_COMPARE:
     case E_ATTR_EQUALS:
     case E_ATTR_EXISTS:
+    case E_ATTR_TEST:
         return v_bool(eval_bool(e, c));
     case E_ARITH: {
         double x = eval_number(e->left, c), y = eval_number(e->right, c);
@@ -977,6 +980,56 @@ static value eval(const expr *e, const ectx *c) {
     }
 }
 
+/* contains(concat(prefix, @name, suffix), 'needle') (and starts-with, ends-with; prefix and suffix may be empty):
+   tested on the attribute value in place, without a node-set and strings for every element. */
+static int test_str(int func, fhp_str s, fhp_str needle) {
+    if (func == F_STARTS_WITH) return fhp_starts_with(s, needle);
+    if (func == F_ENDS_WITH) return fhp_ends_with(s, needle);
+    return fhp_index(s.ptr, s.len, needle.ptr, needle.len) >= 0;
+}
+
+static int attr_test(const expr *e, const ectx *c) {
+    fhp_str raw = FHP_EMPTY, value;
+    fhp_arena *sc = NULL;
+    fhp_mark m = {0};
+    char stack_buf[256];
+    char *joined;
+    size_t len;
+    int r;
+    /* a missing attribute is an empty node-set, whose string-value is "" */
+    if (!attribute_of(c->st->doc, &c->node, e->str, &raw)) raw = FHP_EMPTY;
+    value = raw;
+    if (fhp_needs_decoding(raw)) {
+        sc = fhp_scratch();
+        m = fhp_arena_mark(sc);
+        value = fhp_decode(sc, raw, 1);
+    }
+    if (e->prefix.len == 0 && e->suffix.len == 0) {
+        r = test_str(e->op, value, e->value);
+    } else {
+        len = e->prefix.len + value.len + e->suffix.len;
+        if (len <= sizeof stack_buf) {
+            joined = stack_buf;
+        } else {
+            if (!sc) {
+                sc = fhp_scratch();
+                m = fhp_arena_mark(sc);
+            }
+            joined = (char *)fhp_alloc(sc, len);
+        }
+        if (!joined) {
+            r = 0;
+        } else {
+            if (e->prefix.len) memcpy(joined, e->prefix.ptr, e->prefix.len);
+            if (value.len) memcpy(joined + e->prefix.len, value.ptr, value.len);
+            if (e->suffix.len) memcpy(joined + e->prefix.len + value.len, e->suffix.ptr, e->suffix.len);
+            r = test_str(e->op, fhp_s(joined, len), e->value);
+        }
+    }
+    if (sc) fhp_arena_release(sc, m);
+    return r;
+}
+
 static int eval_bool(const expr *e, const ectx *c) {
     switch (e->kind) {
     case E_LITERAL:
@@ -998,6 +1051,8 @@ static int eval_bool(const expr *e, const ectx *c) {
         fhp_str raw;
         return attribute_of(c->st->doc, &c->node, e->str, &raw);
     }
+    case E_ATTR_TEST:
+        return attr_test(e, c);
     default: {
         value v = eval(e, c);
         return to_boolean(&v);
@@ -2025,6 +2080,32 @@ static const struct {
     {"round", F_ROUND, 1, 1, Y_NUMBER},
 };
 
+/* contains(@a, 'x'), starts-with(...), ends-with(...), also with the attribute wrapped in literals
+   (contains(concat(' ', @class, ' '), ' x '), the usual class test), are evaluated on the attribute in place. */
+static expr *make_attr_test(xcompiler *c, expr *f) {
+    fhp_str name;
+    expr *e, *arg;
+    if ((f->op != F_CONTAINS && f->op != F_STARTS_WITH && f->op != F_ENDS_WITH) || f->list[1]->kind != E_LITERAL) return f;
+    arg = f->list[0];
+    if (attribute_name(arg, &name)) {
+        e = new_expr(c, E_ATTR_TEST);
+        if (!e) return NULL;
+        e->prefix = e->suffix = FHP_EMPTY;
+    } else if (arg->kind == E_FUNCTION && arg->op == F_CONCAT && arg->nlist == 3 && arg->list[0]->kind == E_LITERAL &&
+               arg->list[2]->kind == E_LITERAL && attribute_name(arg->list[1], &name)) {
+        e = new_expr(c, E_ATTR_TEST);
+        if (!e) return NULL;
+        e->prefix = arg->list[0]->str;
+        e->suffix = arg->list[2]->str;
+    } else {
+        return f;
+    }
+    e->str = name;
+    e->op = f->op;
+    e->value = f->list[1]->str;
+    return e;
+}
+
 static expr *parse_primary(xcompiler *c) {
     token t = advance(c);
     size_t k, cap = 0;
@@ -2082,7 +2163,7 @@ static expr *parse_primary(xcompiler *c) {
         xfail_at(c, t.position, msg);
         return NULL;
     }
-    return e;
+    return make_attr_test(c, e);
 }
 
 static expr *parse_path(xcompiler *c) {
