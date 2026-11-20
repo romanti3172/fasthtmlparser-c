@@ -32,7 +32,7 @@ This builds the static library `fasthtmlparser` and the shared one (`fasthtmlpar
 
 ```cmake
 include(FetchContent)
-FetchContent_Declare(fasthtmlparser GIT_REPOSITORY https://github.com/romanti3172/fasthtmlparser-c.git GIT_TAG v0.1.0)
+FetchContent_Declare(fasthtmlparser GIT_REPOSITORY https://github.com/romanti3172/fasthtmlparser-c.git GIT_TAG v0.1.1)
 set(FHP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(fasthtmlparser)
 target_link_libraries(your_app PRIVATE fasthtmlparser)   # or fasthtmlparser_shared
