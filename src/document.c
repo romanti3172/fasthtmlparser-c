@@ -194,17 +194,55 @@ static int has_children(const fhp_doc *doc, fhp_node n) {
 
 int fhp_has_children(const fhp_doc *doc, fhp_node n) { return fhp_valid(doc, n) && has_children(doc, n); }
 
+/* Whether the page has a pre, listing or plaintext, looked up once: most pages have none, and then the text does not
+   look for one around each tag. */
+int fhp_doc_has_pre(const fhp_doc *cdoc) {
+    fhp_doc *doc = (fhp_doc *)cdoc; /* a lazy field, as the CSS tree */
+    if (doc->has_pre == 0) {
+        size_t i;
+        doc->has_pre = 1;
+        for (i = 0; i < doc->count; i++) {
+            int k = doc->nodes[i].key;
+            if (k == KEY(FHP_TAG_PRE) || k == KEY(FHP_TAG_LISTING) || k == KEY(FHP_TAG_PLAINTEXT)) {
+                doc->has_pre = 2;
+                break;
+            }
+        }
+    }
+    return doc->has_pre == 2;
+}
+
+/* Whether the tag is pre, listing or plaintext, or inside one. */
+int fhp_in_pre(const fhp_doc *doc, fhp_node n) {
+    if (!fhp_doc_has_pre(doc)) return 0;
+    while (n >= 0) {
+        int k = doc->nodes[n].key;
+        if (k == KEY(FHP_TAG_PRE) || k == KEY(FHP_TAG_LISTING) || k == KEY(FHP_TAG_PLAINTEXT)) return 1;
+        n = doc->nodes[n].parent;
+    }
+    return 0;
+}
+
+/* The visible text in one line, as jsoup's text(): <br>, block elements and table cells separate words, inline tags
+   do not, whitespace and line breaks collapse to one space; inside <pre> whitespace is kept; script, style, textarea,
+   title, ... are their content as written. */
 fhp_str fhp_text(const fhp_doc *doc, fhp_node n, fhp_arena *a) {
     fhp_str body;
-    int key;
+    int key, leaf, plain, in_pre;
     if (!fhp_valid(doc, n)) return FHP_EMPTY;
     body = fhp_body_s(doc, n);
     key = fhp_nd(doc, n)->key;
     a = fhp_result_arena(doc, a);
-    /* No child tags and no '<' at all: the body is the text, except in script, style, textarea, title, ... */
-    if (!has_children(doc, n) && (!fhp_memchr(body.ptr, '<', body.len) || fhp_has_raw_text(key)))
-        return fhp_decode(a, body, 0);
-    return fhp_clear_tags(a, body);
+    leaf = !has_children(doc, n);
+    /* script, style, textarea, title, ... without child tags: their content is text as written */
+    if (leaf && fhp_has_raw_text(key)) return fhp_decode(a, body, 0);
+    /* no child tags, no '<' and no whitespace to collapse: the body is the text */
+    plain = leaf && !fhp_memchr(body.ptr, '<', body.len);
+    if (plain && !fhp_needs_collapse(body)) return fhp_decode(a, body, 0);
+    /* <pre> and what is in it keep their whitespace (looked up only when there is whitespace to keep) */
+    in_pre = fhp_in_pre(doc, n);
+    if (plain && in_pre) return fhp_decode(a, body, 0);
+    return fhp_clear_tags_in(a, body, in_pre);
 }
 
 fhp_str fhp_text_line_breaks(const fhp_doc *doc, fhp_node n, fhp_arena *a) {

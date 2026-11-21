@@ -297,6 +297,7 @@ struct fhp_doc {
     fhp_arena *results; /* the arena NULL stands for, created on first use */
     fhp_css_tree *css;
     int css_types; /* type positions built */
+    int has_pre;   /* 0: not looked up, 1: no pre, listing or plaintext in the page, 2: there is one (fhp_doc_has_pre) */
 };
 
 FHP_INLINE const fhp_nodedata *fhp_nd(const fhp_doc *d, fhp_node n) { return &d->nodes[n]; }
@@ -339,6 +340,10 @@ int fhp_has_class_s(const fhp_doc *doc, fhp_node n, fhp_str cls);
 fhp_str fhp_clear_tags(fhp_arena *a, fhp_str s);
 fhp_str fhp_clear_tags_line_breaks(fhp_arena *a, fhp_str s);
 int fhp_is_text(const fhp_doc *doc, fhp_node n, fhp_str expected);
+fhp_str fhp_clear_tags_in(fhp_arena *a, fhp_str s, int in_pre);
+int fhp_needs_collapse(fhp_str s);
+int fhp_doc_has_pre(const fhp_doc *doc);
+int fhp_in_pre(const fhp_doc *doc, fhp_node n);
 
 /* document.c */
 int fhp_is_element(const fhp_doc *doc, size_t i);

@@ -773,11 +773,53 @@ static void test_mangled_pages(void) {
     printf("mangled_pages: %u documents\n", (unsigned)docs);
 }
 
+/* The text is the visible text in one line, as jsoup's text() (the cases of TextOneLineTests in the .NET version). */
+static void test_text_one_line(void) {
+    static const char *const cases[][2] = {
+        {"line1<br>line2", "line1 line2"}, {"line1<br><br><br>line2", "line1 line2"}, {"line1 <br> line2", "line1 line2"},
+        {"line1<BR/>line2", "line1 line2"}, {"<p>a</p><p>b</p>", "a b"}, {"<ul><li>a</li><li>b</li></ul>", "a b"},
+        {"<table><tr><td>Price</td><td>100</td></tr></table>", "Price 100"}, {"<h1>Title</h1>text", "Title text"},
+        {"a<span>b</span>c", "abc"}, {"a<my-widget>b</my-widget>", "ab"}, {"a\nb", "a b"}, {"a\r\n\t  b", "a b"},
+        {"a<!-- c -->b", "ab"}, {"<p>a</p><script>x()</script><p>b</p>", "a b"}, {"a &amp; b", "a & b"},
+        {"x<pre>a\n  b</pre>y", "x a\n  b y"},
+    };
+    static const char *const leaves[][2] = {{"span", "a b"}, {"pre", "c\n  d"}, {"textarea", "e\n  f"}};
+    const char *leaf_page = "<span>a\n   b</span><pre>c\n  d</pre><textarea>e\n  f</textarea>";
+    fhp_arena *a = fhp_arena_new(0);
+    char page[256];
+    size_t k;
+    fhp_doc *doc;
+    for (k = 0; k < sizeof cases / sizeof cases[0]; k++) {
+        fhp_query q = {FHP_TAG_DIV};
+        fhp_node div;
+        fhp_str text;
+        snprintf(page, sizeof page, "<div>%s</div>", cases[k][0]);
+        doc = fhp_parse(page, strlen(page));
+        div = fhp_find(doc, FHP_NONE, &q);
+        text = fhp_text(doc, div, a);
+        if (text.len != strlen(cases[k][1]) || memcmp(text.ptr, cases[k][1], text.len) != 0)
+            fail("text of \"%s\": \"%.*s\", want \"%s\"", cases[k][0], (int)text.len, text.ptr, cases[k][1]);
+        q.text = cases[k][1];
+        CHECK(fhp_find(doc, FHP_NONE, &q) == div);
+        fhp_free(doc);
+    }
+    doc = fhp_parse(leaf_page, strlen(leaf_page));
+    for (k = 0; k < sizeof leaves / sizeof leaves[0]; k++) {
+        fhp_query q = fhp_by_name(leaves[k][0]);
+        fhp_str text = fhp_text(doc, fhp_find(doc, FHP_NONE, &q), a);
+        if (text.len != strlen(leaves[k][1]) || memcmp(text.ptr, leaves[k][1], text.len) != 0)
+            fail("text of <%s>: \"%.*s\", want \"%s\"", leaves[k][0], (int)text.len, text.ptr, leaves[k][1]);
+    }
+    fhp_free(doc);
+    fhp_arena_free(a);
+}
+
 int main(int argc, char **argv) {
     int i;
     const char *only = NULL;
     for (i = 1; i < argc; i++) only = argv[i];
     if (!only || strcmp(only, "readme") == 0) test_readme();
+    if (!only || strcmp(only, "text") == 0) test_text_one_line();
     if (!only || strcmp(only, "tags") == 0) test_tags_as_dotnet();
     if (!only || strcmp(only, "compile") == 0) test_compile_as_dotnet();
     if (!only || strcmp(only, "queries") == 0) test_queries_as_dotnet();
