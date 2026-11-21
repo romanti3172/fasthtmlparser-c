@@ -43,7 +43,7 @@ extern "C" {
 #define FHP_API
 #endif
 
-#define FHP_VERSION "0.1.2"
+#define FHP_VERSION "0.1.3"
 
 typedef struct fhp_doc fhp_doc;
 typedef struct fhp_arena fhp_arena;
