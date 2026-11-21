@@ -486,7 +486,10 @@ static size_t start_tag(pstate *st, int rules, size_t to, size_t tag_start, size
     }
 
     /* Void elements (<br>, <img>, <meta>, ...) and declarations never contain anything. */
-    is_void = !st->is_xml && key >= 0 && (fhp_tag_flags[key] & FHP_F_VOID);
+    /* Neither does markup named "!..." or "?..." (<!doctype>, <?xml ...?>, <?php ...?>, <![if IE]>), in HTML and in
+       XML alike: a bogus comment in a browser, a declaration or processing instruction in XML. The name starts with an
+       ASCII letter, '!' or '?' (fhp_is_markup_start), and '!' and '?' sort before the letters: one compare. */
+    is_void = (unsigned char)st->src[tag_start] <= '?' || (!st->is_xml && key >= 0 && (fhp_tag_flags[key] & FHP_F_VOID));
     trimmed = fhp_trim_ascii_end(tag_source);
     self_closing = is_void || (trimmed.len > 0 && trimmed.ptr[trimmed.len - 1] == '/');
 
