@@ -2038,7 +2038,8 @@ static expr *parse_location_path(xcompiler *c) {
         if (!parse_relative_steps(c, &v, 1)) return NULL;
     } else {
         if (!can_start_step(xpeek(c, 0))) {
-            xfail_unexpected(c, "unexpected ");
+            if (xpeek(c, 0)->kind == TK_END) xfail(c, "unexpected end of the expression");
+            else xfail_unexpected(c, "unexpected ");
             return NULL;
         }
         if (!parse_relative_steps(c, &v, 0)) return NULL;

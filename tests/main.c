@@ -180,6 +180,7 @@ static void test_readme(void) {
     prices = fhp_css_compile("p.price_color", NULL, 0);
     CHECK(fhp_css_all(prices, doc, FHP_NONE, a).len == 1);
     CHECK(fhp_xpath_compile("//a[", err, sizeof err) == NULL && strstr(err, "invalid XPath") != NULL);
+    CHECK(strstr(err, "unexpected end of the expression") != NULL);
     CHECK(fhp_css_compile("a[", err, sizeof err) == NULL && strstr(err, "invalid CSS selector") != NULL);
 
     /* search */
