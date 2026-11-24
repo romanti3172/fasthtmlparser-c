@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(fasthtmlparser VERSION 0.1.3 LANGUAGES C)
+project(fasthtmlparser VERSION 0.1.4 LANGUAGES C)
 
 option(FHP_BUILD_TESTS "Build the tests" ON)
 option(FHP_BUILD_SHARED "Build the shared library too" ON)
